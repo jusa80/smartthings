@@ -4,7 +4,7 @@ Devices and SmartApps for Samsung Smartthings HUB
 
 ###### devices
 - symfonisk.groovy
-  Device Handler for Ikea Symfonisk COntroller
+  Device Handler for Ikea Symfonisk Controller
   
 ###### smartapps
 - sonos-remote-control.groovy
