@@ -18,4 +18,5 @@ SmartApp for controlling light bulbs with Ikea Symfonisk Controller. Supported f
 - Full Brightness (Treble click)
 
 **Color Temperature:** Double clicking steps through colors "candle light", "warm white", "cool white".
+
 **Full Brightness:** Treble click sets the brightness of the light to 100%. Treble clicking again returns to previous brightness. Notice that using dimmer when after setting up "Full Brightness" continues from level which was set before enabling it.
