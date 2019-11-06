@@ -32,8 +32,8 @@ preferences {
     section("Select your devices") {
         input "buttonDevice", "capability.button", title: "Light ON/OFF Control", multiple: false, required: true
         input "levelDevice", "capability.switchLevel", title: "Light Level Control", multiple: false, required: true
-        input "whiteBulbs", "capability.colorControl", title: "White Spectrum Light Bulb", multiple: true, required: false
-        input "rgbBulbs", "capability.colorTemperature", title: "RGBW Light Bulb", multiple: true, required: false
+        input "whiteBulbs", "capability.colorTemperature", title: "White Spectrum Light Bulb", multiple: true, required: false
+        input "rgbBulbs", "capability.colorControl", title: "RGBW Light Bulb", multiple: true, required: false
     }
 }
 
