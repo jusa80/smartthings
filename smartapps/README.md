@@ -1,6 +1,6 @@
 # SmartApps
 
-###### Sonos Remote Control
+### Sonos Remote Control
 SmartApp for controlling Sonos device with Ikea Symfonisk Controller. Supported functions are:
 - Volume (dimmer up/down)
 - Play/Stop (Click)
@@ -10,7 +10,7 @@ SmartApp for controlling Sonos device with Ikea Symfonisk Controller. Supported 
 **Volume:** Volume control tries to prevent accidental "too big volume change" in case of Sonos device was previously controlled
 through some other device (directly from device, phone, etc.). This happens by syncing the dimmer level with Sonos volume so level of controlling device might change "automatically" in some cases.
 
-###### Light Control
+### Light Control
 SmartApp for controlling light bulbs with Ikea Symfonisk Controller. Supported functions are:
 - Brightness (dimmer up/down)
 - ON/OFF (Click)
