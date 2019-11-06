@@ -55,6 +55,7 @@ def initialize() {
     subscribe(levelDevice, "level", buttonEvent)
     state.color = 1
     state.temp = 1
+    state.power = "off"
     state.fullBrightness = 0
 }
 
@@ -80,14 +81,15 @@ def handleCommand(command, value) {
         switch (value) {
             case "pushed":
                 log.debug "Button clicked - ON/OFF"
-                def currentStatus = lightBulb.currentValue("switch")
-                log.debug "Bulb status $currentStatus"
-                if (currentStatus == "on") {
+                log.debug "Bulb status $state.power"
+                if (state.power == "on") {
                     whiteBulbs*.off()
                     rgbBulbs*.off()
+                    state.power = "off"
                 } else {
                     whiteBulbs*.on()
                     rgbBulbs*.on()
+                    state.power = "on"
                 }
                 break
             case "pushed_2x":
