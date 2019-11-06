@@ -14,6 +14,7 @@
  *
  *  Version Author              Note
  *  0.9     Juha Tanskanen      Initial release
+ *  0.10    Juha Tanskanen      Support for RGB lights and multiple lights
  *
  */
 
@@ -31,7 +32,8 @@ preferences {
     section("Select your devices") {
         input "buttonDevice", "capability.button", title: "Light ON/OFF Control", multiple: false, required: true
         input "levelDevice", "capability.switchLevel", title: "Light Level Control", multiple: false, required: true
-        input "lightBulb", "capability.switch", title: "Light Bulb", multiple: false, required: true
+        input "whiteBulbs", "capability.colorControl", title: "White Spectrum Light Bulb", multiple: true, required: false
+        input "rgbBulbs", "capability.colorTemperature", title: "RGBW Light Bulb", multiple: true, required: false
     }
 }
 
@@ -81,32 +83,43 @@ def handleCommand(command, value) {
                 def currentStatus = lightBulb.currentValue("switch")
                 log.debug "Bulb status $currentStatus"
                 if (currentStatus == "on") {
-                    lightBulb.off()
+                    whiteBulbs*.off()
+                    rgbBulbs*.off()
                 } else {
-                    lightBulb.on()
+                    whiteBulbs*.on()
+                    rgbBulbs*.on()
                 }
                 break
             case "pushed_2x":
                 log.debug "Button clicked twice - Change Color"
                 changeColorTemperature()
+                changeColor()
                 break
             case "pushed_3x":
                 if (state.fullBrightness) {
                     log.debug "Button clicked treble - Return Dimmer Brigthness"
-                    lightBulb.setLevel(levelDevice.currentValue("level"))
+                    whiteBulbs*.setLevel(levelDevice.currentValue("level"))
+                    rgbBulbs*.setLevel(levelDevice.currentValue("level"))
                     state.fullBrightness = 0
                 } else {
                     log.debug "Button clicked treble - Full Brigthness"
-                    lightBulb.setLevel(100)
+                    whiteBulbs*.setLevel(100)
+                    rgbBulbs*.setLevel(100)
                     state.fullBrightness = 1
                 }
                 break
         }
     } else {
-        Integer currentLevel = lightBulb.currentValue("level")
-        log.debug "Set level $currentLevel -> $value"
-        lightBulb.setLevel(value as Integer)
-        state.fullBrightness = 0
+        whiteBulbs.each {
+            Integer currentLevel = it.currentValue("level")
+            log.debug "Set level of White Spectrum bulb $currentLevel -> $value"
+        }
+        rgbBulbs.each {
+            Integer currentLevel = it.currentValue("level")
+            log.debug "Set level of RGB bulb $currentLevel -> $value"
+        }
+        whiteBulbs*.setLevel(value as Integer)
+        rgbBulbs*.setLevel(value as Integer)
     }
 }
 
@@ -122,7 +135,7 @@ private changeColorTemperature() {
 
     def temp = temps.get(state.temp)
     state.temp = (state.temp + 1)%temps.size()
-    lightBulb.setColorTemperature(temp.get('temp'))
+    whiteBulbs*.setColorTemperature(temp.get('temp'))
 }
 
 private changeColor() {
@@ -131,11 +144,18 @@ private changeColor() {
         0: [name:'Soft White', hue: 23, saturation: 56],
         1: [name:'White', hue: 52, saturation: 19],
         2: [name:'Daylight', hue: 53, saturation: 91],
-        3: [name:'Warm White', hue: 20, saturation: 80]
+        3: [name:'Warm White', hue: 20, saturation: 83],
+        4: [name:'Blue', hue: 70, saturation: 100],
+        5: [name:'Green', hue: 39, saturation: 100],
+        6: [name:'Yellow', hue: 25, saturation: 100],
+        7: [name:'Orange', hue: 10, saturation: 100],
+        8: [name:'Purple', hue: 75, saturation: 100],
+        9: [name:'Pink', hue: 83, saturation: 100],
+       10: [name:'Red', hue: 100, saturation: 100]
     ]
 
     def color = colors.get(state.color)
     def newValue = [hue: color.get('hue'), saturation: color.get('saturation'), level: levelDevice.currentValue("level")]
     state.color = (state.color + 1)%colors.size()
-    lightBulb.setColor(newValue)
+    rgbBulbs*.setColor(newValue)
 }
