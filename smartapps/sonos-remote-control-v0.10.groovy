@@ -14,6 +14,7 @@
  *
  *  Version Author              Note
  *  0.9     Juha Tanskanen      Initial release
+ *  0.10    Juha Tanskanen      Updated to match changes in SYMFONISK device handler
  *
  */
 
@@ -74,7 +75,7 @@ def handleCommand(command, value) {
     if (command == "button") {
         log.debug "Handle $value"
         switch (value) {
-            case "clicked":
+            case "pushed":
                 log.debug "Button clicked - Play/Pause"
                 def currentStatus = sonos.currentValue("playbackStatus")
                 log.debug "Sonos status $currentStatus"
@@ -84,18 +85,32 @@ def handleCommand(command, value) {
                     sonos.play()
                 }
                 break
-            case "clicked twice":
+            case "pushed_2x":
                 log.debug "Button clicked twice - Next Track"
                 sonos.nextTrack()
                 break
-            case "clicked treble":
+            case "pushed_3x":
                 log.debug "Button clicked treble - Previous Track"
                 sonos.previousTrack()
                 break
         }
     } else {
-        def currentVolume = sonos.currentValue("volume")
-        def newVolume = ((BigInteger)currentVolume).intValue() + value.toInteger()
+        Integer currentVolume = sonos.currentValue("volume")
+        Integer change = value.toInteger() - currentVolume
+        Integer newVolume = currentVolume + change
+
+        // This is a workaround to prevent accidental "too big volume change" if Sonos device
+        // was controlled through some other device
+        if (Math.abs(change) > 20) {
+            if (Math.abs(change) > 50) {
+                change /= 4
+            } else if (Math.abs(change) > 25) {
+                change /= 2
+            }
+            newVolume = currentVolume + change
+            levelDevice.setLevel(newVolume)
+        }
+
         log.debug "Set volume $currentVolume -> $newVolume"
         sonos.setVolume(newVolume)
     }
