@@ -14,6 +14,7 @@
  *
  *  Version Author              Note
  *  0.9     Juha Tanskanen      Initial release
+ *  0.10    Juha Tanskanen      Standard button enums taken in use, switch level is now the real level
  *
  */
 
@@ -28,6 +29,7 @@ metadata {
         capability "Configuration"
         capability "Holdable Button"
         capability "Sensor"
+        capability "Switch"
         capability "Switch Level"
         capability "Health Check"
 
@@ -42,13 +44,13 @@ metadata {
     tiles {
         standardTile("button", "device.button", width: 2, height: 2) {
             state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
-            state "clicked", label: "clicked", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
-            state "clicked twice", label: "clicked twice", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
-            state "clicked treble", label: "clicked treble", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
+            state "pushed", label: "clicked", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
+            state "pushed_2x", label: "clicked twice", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
+            state "pushed_3x", label: "clicked treble", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#00A0DC"
         }
 
         valueTile("level", "device.level", width: 2, height: 2) {
-            state "volume", label: '${currentValue}%'
+            state "level", label: '${currentValue}%'
         }
 
         valueTile("battery", "device.battery", decoration: "flat", inactiveLabel: false) {
@@ -63,8 +65,10 @@ metadata {
 private getCLUSTER_GROUPS() { 0x0004 }
 
 private getREMOTE_BUTTONS() {
-    [CONTROL_BUTTON:1,
-     VOLUME_BUTTON:2]
+    [
+        CONTROL_BUTTON:1,
+        VOLUME_BUTTON:2
+    ]
 }
 
 private getIkeaSoundControlNames() {
@@ -126,14 +130,16 @@ def installed() {
 
     createChildButtonDevices(numberOfButtons)
 
-    sendEvent(name: "supportedButtonValues", value: ["clicked", "clicked twice", "clicked treble", "stop", "step up", "step down"].encodeAsJSON(), displayed: false)
+    sendEvent(name: "supportedButtonValues", value: ["pushed", "pushed_2x", "pushed_3x"].encodeAsJSON(), displayed: false)
     sendEvent(name: "numberOfButtons", value: numberOfButtons, displayed: false)
-    sendEvent(name: "button", value: "clicked", data: [buttonNumber: REMOTE_BUTTONS.CONTROL_BUTTON], displayed: false)
-    sendEvent(name: "button", value: "stop", data: [buttonNumber: REMOTE_BUTTONS.VOLUME_BUTTON], displayed: false)
+    sendEvent(name: "button", value: "pushed", data: [buttonNumber: REMOTE_BUTTONS.CONTROL_BUTTON], displayed: false)
 
-    // These devices don't report regularly so they should only go OFFLINE when Hub is OFFLINE
+    def descriptionText = "Switch Level was changed to 0"
+    sendEvent(name: "level", value: 0, descriptionText: descriptionText, isStateChange: true)
+
     sendEvent(name: "DeviceWatch-Enroll", value: JsonOutput.toJson([protocol: "zigbee", scheme:"untracked"]), displayed: false)
 
+    state.level = 0
     state.start = now()
 }
 
@@ -153,9 +159,18 @@ def configure() {
     def cmds = zigbee.configureReporting(zigbee.POWER_CONFIGURATION_CLUSTER, 0x21, DataType.UINT8, 30, 21600, 0x01) +
             zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x21) +
             zigbee.addBinding(zigbee.ONOFF_CLUSTER) +
+            zigbee.levelConfig()
             readDeviceBindingTable() // Need to read the binding table to see what group it's using
 
     cmds
+}
+
+def setLevel(value) {
+    def descriptionText = "Switch Level was changed to $value"
+
+    def valueaux = value as Integer
+    state.level = Math.max(Math.min(valueaux, 99), 0)
+    sendEvent(name: "level", value: state.level, descriptionText: descriptionText, isStateChange: true)
 }
 
 private Map getBatteryEvent(value) {
@@ -172,7 +187,7 @@ private Map getButtonEvent(Map descMap) {
     Map result = [:]
 
     if (descMap.clusterInt == zigbee.ONOFF_CLUSTER) {
-        buttonState = "clicked"
+        buttonState = "pushed"
         if (descMap.commandInt == 0x02) {
             buttonNumber = 1
         }
@@ -180,22 +195,22 @@ private Map getButtonEvent(Map descMap) {
         switch (descMap.commandInt) {
             case 0x02:
                 if (descMap.data[0] == "00") {
-                    buttonState = "clicked twice"
+                    buttonState = "pushed_2x"
                 } else {
-                    buttonState = "clicked treble"
+                    buttonState = "pushed_3x"
                 }
                 buttonNumber = REMOTE_BUTTONS.CONTROL_BUTTON
                 break;
             case 0x01:
                 if (descMap.data[0] == "00") {
-                    buttonState = "step up"
+                    buttonState = "up"
                 } else {
-                    buttonState = "step down"
+                    buttonState = "down"
                 }
                 buttonNumber = REMOTE_BUTTONS.VOLUME_BUTTON
                 break;
             case 0x03:
-                buttonState = "stop"
+                buttonState = "held"
                 buttonNumber = REMOTE_BUTTONS.VOLUME_BUTTON
                 break;
             default:
@@ -204,7 +219,6 @@ private Map getButtonEvent(Map descMap) {
     }
 
     if (buttonNumber != 0) {
-        // Create old style
         def descriptionText = "${getButtonName(buttonNumber)} was $buttonState"
         result = [name: "button", value: buttonState, data: [buttonNumber: buttonNumber], descriptionText: descriptionText, isStateChange: true]
 
@@ -216,14 +230,17 @@ private Map getButtonEvent(Map descMap) {
 }
 
 private sendButtonEvent(buttonNumber, buttonState) {
-    def child = childDevices?.find { channelNumber(it.deviceNetworkId) == buttonNumber }
 
-    if (child) {
-        def descriptionText = "$child.displayName was $buttonState" // TODO: Verify if this is needed, and if capability template already has it handled
+    if (buttonNumber == REMOTE_BUTTONS.CONTROL_BUTTON) {
+        def child = childDevices?.find { channelNumber(it.deviceNetworkId) == buttonNumber }
 
-        child?.sendEvent([name: "button", value: buttonState, data: [buttonNumber: 1], descriptionText: descriptionText, isStateChange: true])
-    } else {
-        log.debug "Child device $buttonNumber not found!"
+        if (child) {
+            def descriptionText = "$child.displayName was $buttonState"
+
+            child?.sendEvent([name: "button", value: buttonState, data: [buttonNumber: 1], descriptionText: descriptionText, isStateChange: true])
+        } else {
+            log.debug "Child device $buttonNumber not found!"
+        }
     }
 }
 
@@ -231,28 +248,36 @@ private sendLevelEvent(buttonNumber, buttonState) {
 
     if (buttonNumber == REMOTE_BUTTONS.VOLUME_BUTTON) {
         switch (buttonState) {
-            case "step up":
+            case "up":
                 state.start = now()
                 state.direction = 1
                 break
-            case "step down":
+            case "down":
                 state.start = now()
                 state.direction = 0
                 break
-            case "stop":
+            case "held":
                 long iTime = now() - state.start
-                def iChange = 0
+                Integer iChange = 0
 
-                // Ignore turns over 5 seconds, probably a lag issue
-                if (iTime > 5000) {
+                // Ignore turns over 4 seconds, probably a lag issue
+                if (iTime > 4000) {
                     iTime = 0
                 }
 
-                // Change based on 5 seconds for full 0-100 change in brightness
-                iChange = iTime/5000 * 100
-                def volumeChange = state.direction ? ((BigInteger)iChange).intValue() : ((BigInteger)(0 - iChange)).intValue()
-                def descriptionText = "Switch Level was  changed $volumeChange"
-                sendEvent(name: "level", value: volumeChange, descriptionText: descriptionText, isStateChange: true)
+                // Change based on 4 seconds for full 0-100 change in brightness
+                iChange = iTime/4000 * 100
+
+                state.level = state.direction ? state.level + iChange : state.level - iChange
+
+                if (state.level < 0) {
+                    state.level = 0
+                } else if (state.level > 100) {
+                    state.level = 100
+                }
+
+                def descriptionText = "Switch Level was changed to $state.level"
+                sendEvent(name: "level", value: state.level, descriptionText: descriptionText, isStateChange: true)
                 break
         }
     }
@@ -277,7 +302,7 @@ private void createChildButtonDevices(numberOfButtons) {
 
     for (i in 1..numberOfButtons) {
         log.debug "Creating child $i"
-        def supportedButtons = (i == REMOTE_BUTTONS.CONTROL_BUTTON) ? ["clicked", "clicked twice", "clicked treble"] : ["stop", "step up", "step down"]
+        def supportedButtons = (i == REMOTE_BUTTONS.CONTROL_BUTTON) ? ["pushed", "pushed_2x", "pushed_3x"] : ["held", "up", "down"]
         def child = addChildDevice("Child Button", "${device.deviceNetworkId}:${i}", device.hubId,
                 [completedSetup: true, label: getButtonName(i),
                  isComponent: true, componentName: "button$i", componentLabel: getButtonLabel(i)])
@@ -307,6 +332,5 @@ private List addHubToGroup(Integer groupAddr) {
 }
 
 private List readDeviceBindingTable() {
-    ["zdo mgmt-bind 0x${device.deviceNetworkId} 0",
-     "delay 200"]
+    ["zdo mgmt-bind 0x${device.deviceNetworkId} 0", "delay 200"]
 }
