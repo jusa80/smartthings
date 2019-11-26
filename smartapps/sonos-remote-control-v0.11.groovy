@@ -34,7 +34,7 @@ preferences {
         input "buttonDevice", "capability.button", title: "Sonos Control", multiple: false, required: true
         input "levelDevice", "capability.switchLevel", title: "Sonos Volume Control", multiple: false, required: true
         input "sonos", "capability.audioVolume", title: "Sonos Master", multiple: false, required: true
-        input "sonosSlaves", "capability.audioVolume", title: "Sonos Slaves", multiple: true, required: true
+        input "sonosSlaves", "capability.audioVolume", title: "Sonos Slaves", multiple: true, required: false
     }
 }
 
