@@ -15,6 +15,7 @@
  *  Version Author              Note
  *  0.9     Juha Tanskanen      Initial release
  *  0.10    Juha Tanskanen      Updated to match changes in SYMFONISK device handler
+ *  0.11    Juha Tanskanen      Support for multiple Sonos players (Master/Slaves concept)
  *
  */
 
@@ -32,7 +33,8 @@ preferences {
     section("Select your devices") {
         input "buttonDevice", "capability.button", title: "Sonos Control", multiple: false, required: true
         input "levelDevice", "capability.switchLevel", title: "Sonos Volume Control", multiple: false, required: true
-        input "sonos", "capability.audioVolume", title: "Sonos", multiple: false, required: true
+        input "sonos", "capability.audioVolume", title: "Sonos Master", multiple: false, required: true
+        input "sonosSlaves", "capability.audioVolume", title: "Sonos Slaves", multiple: true, required: true
     }
 }
 
@@ -52,7 +54,6 @@ def updated() {
 def initialize() {
     subscribe(buttonDevice, "button", buttonEvent)
     subscribe(levelDevice, "level", buttonEvent)
-
 }
 
 def buttonEvent(evt){
@@ -81,17 +82,21 @@ def handleCommand(command, value) {
                 log.debug "Sonos status $currentStatus"
                 if (currentStatus == "playing") {
                     sonos.pause()
+                    sonosSlaves*.pause()
                 } else {
                     sonos.play()
+                    sonosSlaves*.play()
                 }
                 break
             case "pushed_2x":
                 log.debug "Button clicked twice - Next Track"
                 sonos.nextTrack()
+                sonosSlaves*.nextTrack()
                 break
             case "pushed_3x":
                 log.debug "Button clicked treble - Previous Track"
                 sonos.previousTrack()
+                sonosSlaves*.previousTrack()
                 break
         }
     } else {
@@ -113,5 +118,7 @@ def handleCommand(command, value) {
 
         log.debug "Set volume $currentVolume -> $newVolume"
         sonos.setVolume(newVolume)
+        sonosSlaves*.setVolume(newVolume)
+
     }
 }
