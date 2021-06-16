@@ -113,11 +113,11 @@ def handleCommand(command, value) {
         }
     } else {
         whiteBulbs.each {
-            Integer currentLevel = it.currentValue("level")
+            String currentLevel = it.currentValue("level")
             log.debug "Set level of White Spectrum bulb $currentLevel -> $value"
         }
         rgbBulbs.each {
-            Integer currentLevel = it.currentValue("level")
+            String currentLevel = it.currentValue("level")
             log.debug "Set level of RGB bulb $currentLevel -> $value"
         }
         whiteBulbs*.setLevel(value as Integer)
